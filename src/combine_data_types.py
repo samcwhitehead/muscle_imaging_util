@@ -146,7 +146,8 @@ def load_all_data(fly, var_dict=VAR_DICT, general_h5_str=GENERAL_H5_STR, signals
 
 # -----------------------------------------------------------------------------------------------------------
 def combine_fly_data(fly, var_dict=VAR_DICT, general_h5_str=GENERAL_H5_STR, signals_str=SIGNALS_STR,
-                     daq_fields=DAQ_FIELDS, resample_freq=RESAMPLE_FREQ, interp_kind=INTERP_KIND, save_flag=True):
+                     daq_fields=DAQ_FIELDS, resample_freq=RESAMPLE_FREQ, resample_t=None,
+                     interp_kind=INTERP_KIND, save_flag=True):
     """
     main function to load in data from different files, interpolate, and then save in new format
     """
@@ -178,10 +179,13 @@ def combine_fly_data(fly, var_dict=VAR_DICT, general_h5_str=GENERAL_H5_STR, sign
     t0 = kine_cam_t[0]  # value to subtract off of other times to keep things aligned
 
     # use muscle camera and kinefly camera time stamps to get global clock time (per Thad's code)
-    muscle_t -= t0
-    end = np.floor(muscle_t[-1])
-    num_new_samples = end * resample_freq
-    resample_t = np.linspace(0, end, num_new_samples)
+    # (unless we've provided it as input)
+    if resample_t is None:
+        muscle_t -= t0
+        end = np.floor(muscle_t[-1])
+        num_new_samples = end * resample_freq
+
+        resample_t = np.linspace(0, end, num_new_samples)
 
     # ------------------------------------------------------------------------------------------------------------------
     # loop through variables and interpolate them to new, global time (diff data types will require diff cases)

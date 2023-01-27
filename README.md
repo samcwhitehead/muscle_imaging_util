@@ -1,1 +1,1 @@
-# muscle_imaging_util
+# Utility code for muscle imaging data collection and analysis

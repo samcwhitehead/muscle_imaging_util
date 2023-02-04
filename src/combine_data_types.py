@@ -64,6 +64,10 @@ def load_daq_data(daq_channels, daq_vals, var_name):
     """
     helper function to load daq data, since it's stored in channels
     """
+    if sys.version_info[0] < 3:
+        pass
+    else:
+        var_name = var_name.encode('utf-8')
     idx = np.where(daq_channels == var_name)
     return daq_vals[idx[0], idx[1]]
 
@@ -161,7 +165,10 @@ def combine_fly_data(fly, var_dict=VAR_DICT, general_h5_str=GENERAL_H5_STR, sign
     # get global time variable
     # Thad's code uses ca_cam signal zeroed at the first kinefly time stamp, so first get ca and kinefly cam tstamps
     muscle_t_keys = ['right_muscle_t', 'left_muscle_t']
-    if all([(k in loaddata.keys()) for k in muscle_t_keys]):
+    if resample_t is not None:
+        # in this case, we don't need to worry about loading muscle camera clocks, so can skip
+        pass
+    elif all([(k in loaddata.keys()) for k in muscle_t_keys]):
         # get muscle timing for both sides, take the shorter of the two (so we don't extrapolate)
         muscle_t_list = [loaddata[key] for key in muscle_t_keys]
         mt_idx = np.argmin(np.array([np.max(mt) for mt in muscle_t_list]))
@@ -193,8 +200,8 @@ def combine_fly_data(fly, var_dict=VAR_DICT, general_h5_str=GENERAL_H5_STR, sign
     interp_dict['time'] = resample_t
 
     # loop over keys in loaddata dict to interpolate these variables
-    data_keys = loaddata.keys()
-    data_keys.sort()  # sort keys to keep output organized?
+    data_keys = sorted(loaddata.keys())
+    # data_keys.sort()  # sort keys to keep output organized?
     for key in data_keys:
         # if unicode, convert to string
         key = str(key)
@@ -216,9 +223,11 @@ def combine_fly_data(fly, var_dict=VAR_DICT, general_h5_str=GENERAL_H5_STR, sign
             for dkey in daq_fields.keys():
                 # load data
                 daq_dat = load_daq_data(daq_channels, daq_vals, daq_fields[dkey])
+
                 # interpolate from daq time to resampled time and add to dict
                 interp_dict[dkey] = my_interp(daq_t, daq_dat, resample_t, interp_kind=interp_kind)
             continue
+
         elif ('daq' in key) and all([(dk in interp_dict.keys()) for dk in daq_fields.keys()]):
             # this means we've already done the DAQ data extraction, so just skip
             continue
@@ -235,8 +244,15 @@ def combine_fly_data(fly, var_dict=VAR_DICT, general_h5_str=GENERAL_H5_STR, sign
         dat = loaddata[key]
 
         # special case when 'dat' is a string list/array (e.g. for exp_block and exp_state).
-        # otherwise just do normal interp
-        if isinstance(dat[0], basestring):
+        # otherwise just do normal interp. NB: doing this separately due to version issues
+        if sys.version_info[0] < 3:
+            # python 2 case, where basestring is still valid
+            is_string_flag = isinstance(dat[0], basestring)
+        else:
+            # python 3 case, where we can just look for string
+            is_string_flag = isinstance(dat[0], str) | isinstance(dat[0], bytes)
+
+        if is_string_flag:
             # first, check if we just have one entry -- if so just repeat it
             if len(dat) == 1:
                 interp_dict[key] = np.tile(dat.astype('S56'), resample_t.size)

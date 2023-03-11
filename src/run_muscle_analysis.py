@@ -16,7 +16,7 @@ from combine_data_types import combine_fly_data
 FLY_DB_PATH = '/media/sam/SamData/FlyDB'  # directory containing fly data
 # FLY_DB_PATH = '/media/imager/DataExternal/FlyDB'
 
-FLIES = [36, 37]  # None  # list of flies to analyze. If None, look for command line input
+FLIES = [34]  # None  # list of flies to analyze. If None, look for command line input
 FOLDER_STR = 'Fly%04d'  # general format of folders containing fly data -- only used if FLIES contains ints
 FN_STR = 'ca_camera'  # string to search for when looking for files containing image data
 DRIVER = 'GMR39E01'

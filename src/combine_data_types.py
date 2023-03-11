@@ -28,7 +28,7 @@ FOLDER_STR = 'Fly%04d'  # general format of folders containing fly data -- only 
 RESAMPLE_FREQ = 50
 
 # interpolation method (scipy.interpolate.interp1d)
-INTERP_KIND = 'previous'
+INTERP_KIND = 'previous'  # 'nearest'
 
 # define a dictionary that will let us look up the appropriate filename per variables
 GENERAL_H5_STR = 'converted%s.hdf5'
@@ -107,7 +107,7 @@ def my_interp(t, dat, resamp_t, interp_kind=INTERP_KIND):
 ####################### FUNCTIONS TO LOAD AND INTERP ###########################################
 ################################################################################################
 def load_all_data(fly, var_dict=VAR_DICT, general_h5_str=GENERAL_H5_STR, signals_str=SIGNALS_STR,
-                  kine_cam_str=KINE_CAM_STR):
+                  kine_cam_str=KINE_CAM_STR, fly_db_path=FLY_DB_PATH, folder_str=FOLDER_STR):
     """
     Function to go over the various hdf5 files in which different signals are saved, and group them into one dict
     """
@@ -115,7 +115,7 @@ def load_all_data(fly, var_dict=VAR_DICT, general_h5_str=GENERAL_H5_STR, signals
     load_dict = dict()
 
     # get path to folder containing data for current fly
-    fly_path, file_suffix = get_fly_path(fly)
+    fly_path, file_suffix = get_fly_path(fly, fly_db_path=fly_db_path, folder_str=folder_str)
 
     # locate hdf5 file containing non-imaging variables
     converted_h5_path = os.path.join(fly_path, general_h5_str %(file_suffix))
@@ -238,7 +238,7 @@ def combine_fly_data(fly, var_dict=VAR_DICT, general_h5_str=GENERAL_H5_STR, sign
             t = loaddata['%s_muscle_t'%(key.split('_')[0])].copy()
         else:
             # for other data types, each will have its own time
-            t = loaddata[key + '_t']
+            t = loaddata[key + '_t'].copy()
 
         t -= t0   # NB: following Thad's code, I'm subtracting off intial kine cam time
         dat = loaddata[key]
@@ -308,3 +308,4 @@ if __name__ == '__main__':
     # loop through flies and do interpolation/saving
     for fly in flies:
         combine_fly_data(fly)
+

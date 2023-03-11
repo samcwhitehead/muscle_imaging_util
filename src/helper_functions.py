@@ -191,3 +191,150 @@ def symm_matrix_half(m, exclude_diagonal=True):
         last_endpoint += counter
         counter += 1
     return collector
+
+
+def get_rframe_transform(self,other):
+    """get transform into self from other frame (muscle imaging reference frames)"""
+    A1 = np.hstack((self['A'],self['p'][:,np.newaxis]))
+    A2 = np.hstack((other['A'],other['p'][:,np.newaxis]))
+    A1 = np.vstack((A1, [0,0,1]))
+    A2 = np.vstack((A2, [0,0,1]))
+
+    return np.dot(A1, np.linalg.inv(A2))
+
+
+def construct_rframe_dict(e1, e2):
+    """Make a dictionary containing refrence frame info"""
+    frame = dict()
+
+    frame['e1'] = e1
+    frame['e2'] = e2
+
+    frame['a2'] = e1[1] - e2[0]
+    frame['a1'] = e2[1] - e2[0]
+    frame['p'] = e2[0]
+
+    # also get transformation matrices based on these vectors
+    frame['A'] = np.vstack((frame['a1'], frame['a2'])).T
+    frame['A_inv'] = np.linalg.inv(frame['A'])
+
+    return frame
+
+
+###################################################################################################
+# Adjust Spines (Dickinson style, thanks to Andrew Straw)
+###################################################################################################
+
+def adjust_spines(ax, spines, spine_locations={}, xticks=None, yticks=None, linewidth=1,
+                  tight_tick_bounds=True):
+    if type(spines) is not list:
+        spines = [spines]
+
+    # get ticks
+    if xticks is None:
+        xticks = ax.get_xticks()
+    if yticks is None:
+        yticks = ax.get_yticks()
+
+    # remove axis ticks beyond data range
+    if tight_tick_bounds:
+        xlim = ax.get_xlim()
+        ylim = ax.get_ylim()
+
+        xticks = [tick for tick in xticks if (tick >= xlim[0]) and (tick <= xlim[1])]
+        yticks = [tick for tick in yticks if (tick >= ylim[0]) and (tick <= ylim[1])]
+
+    spine_locations_dict = {'top': 10, 'right': 10, 'left': 10, 'bottom': 10}
+    for key in spine_locations.keys():
+        spine_locations_dict[key] = spine_locations[key]
+
+    if 'none' in spines:
+        for loc, spine in ax.spines.items():
+            spine.set_color('none')  # don't draw spine
+        ax.yaxis.set_ticks([])
+        ax.xaxis.set_ticks([])
+        return
+
+    for loc, spine in ax.spines.items():
+        if loc in spines:
+            spine.set_position(('outward', spine_locations_dict[loc]))  # outward by x points
+            spine.set_linewidth(linewidth)
+            spine.set_color('black')
+        else:
+            spine.set_color('none')  # don't draw spine
+
+    # smart bounds, if possible
+    for loc, spine in ax.spines.items():
+        ticks = None
+        if loc in ['left', 'right']:
+            ticks = yticks
+        if loc in ['top', 'bottom']:
+            ticks = xticks
+        if ticks is not None and len(ticks) > 0:
+            spine.set_bounds(ticks[0], ticks[-1])
+
+    # turn off ticks where there is no spine
+    if 'left' in spines:
+        ax.yaxis.set_ticks_position('left')
+    elif 'right' in spines:
+        ax.yaxis.set_ticks_position('right')
+    else:
+        # no yaxis ticks
+        ax.yaxis.set_ticks([])
+
+    if 'bottom' in spines:
+        ax.xaxis.set_ticks_position('bottom')
+    if 'top' in spines:
+        ax.xaxis.set_ticks_position('top')
+    else:
+        # no xaxis ticks
+        ax.xaxis.set_ticks([])
+
+    if 'left' in spines or 'right' in spines:
+        ax.set_yticks(yticks)
+    if 'top' in spines or 'bottom' in spines:
+        ax.set_xticks(xticks)
+
+    for line in ax.get_xticklines() + ax.get_yticklines():
+        # line.set_markersize(6)
+        line.set_markeredgewidth(linewidth)
+
+
+###################################################################################################
+# Axis not so tight (based on some MATLAB code)
+###################################################################################################
+def axis_not_so_tight(ax=None, axis='both', add_percent=0.1):
+    """
+    Function to add a little white space after an axis tight call
+
+    :param ax: axis object to enjorce limits on
+    :param axis: string to determine whether we alter x axis, y axis,
+                    or both ('x' | 'y' | 'both')
+    :param add_percent: percentage of total axis limit to add
+
+    :return: ax, the adjusted axis object
+    """
+    import matplotlib.pyplot as plt
+
+    # get axis if we have to
+    if ax is None:
+        ax = plt.gca()
+
+    # set axis tight
+    ax.autoscale(enable=True, axis=axis, tight=True)
+
+    # get current x and y limits
+    xlim = ax.get_xlim()
+    ylim = ax.get_ylim()
+
+    # enlarge with X percent of this range
+    x_add = add_percent * np.diff(xlim)
+    y_add = add_percent * np.diff(ylim)
+
+    # set axes with updated limits
+    ax.set_xlim(xlim[0] - x_add, xlim[-1] + x_add)
+    ax.set_ylim(ylim[0] - y_add, ylim[-1] + y_add)
+
+    # return adjusted axis
+    return ax
+

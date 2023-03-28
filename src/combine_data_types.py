@@ -87,7 +87,7 @@ def get_fly_path(fly, fly_db_path=FLY_DB_PATH, folder_str=FOLDER_STR):
         file_suffix = os.path.splitext(file_suffix)[0]  # just to make sure '.bag' isn't at the end
 
     # return both
-    return (fly_path, file_suffix)
+    return fly_path, file_suffix
 
 
 # -----------------------------------------------------------------------------------

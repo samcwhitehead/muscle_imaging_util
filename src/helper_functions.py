@@ -38,6 +38,7 @@ def idx_by_thresh(signal, thresh=0.1):
     return idx_list
 
 
+# ------------------------------------------------------------------------------
 def jpg2np(jpg):
     """convert a cv2 jpg byte string image into a numpy array. Deals
     with nan padding as used in my encoding code"""
@@ -46,12 +47,14 @@ def jpg2np(jpg):
     return cv2.imdecode(jpgimg, cv2.IMREAD_COLOR)
 
 
+# ------------------------------------------------------------------------------
 def rewrap(trace, offset=np.pi / 2.):
     unwrapped = np.unwrap(trace, np.pi * 1.8)
     vel = np.diff(unwrapped)
     return np.mod(unwrapped + np.deg2rad(offset), 1.9 * np.pi), vel
 
 
+# ------------------------------------------------------------------------------
 def nan_helper(y):
     """Helper to handle indices and logical indices of NaNs.
     Input:
@@ -69,6 +72,7 @@ def nan_helper(y):
     return ~np.isfinite(y), lambda z: z.nonzero()[0]
 
 
+# ------------------------------------------------------------------------------
 def fill_nan(y):
     import numpy as np
     nans, x = nan_helper(y)
@@ -77,6 +81,7 @@ def fill_nan(y):
     return y
 
 
+# ------------------------------------------------------------------------------
 def butter_bandpass(lowcut, highcut, sampling_period, order=5):
     import scipy.signal
     sampling_frequency = 1.0 / sampling_period
@@ -87,6 +92,7 @@ def butter_bandpass(lowcut, highcut, sampling_period, order=5):
     return b, a
 
 
+# ------------------------------------------------------------------------------
 def butter_bandpass_filter(data, lowcut, highcut, sampling_period, order=5):
     import scipy.signal
     b, a = butter_bandpass(lowcut, highcut, sampling_period, order=order)
@@ -94,6 +100,7 @@ def butter_bandpass_filter(data, lowcut, highcut, sampling_period, order=5):
     return y
 
 
+# ------------------------------------------------------------------------------
 def butter_lowpass(lowcut, sampling_period, order=5):
     import scipy.signal
     sampling_frequency = 1.0 / sampling_period
@@ -103,6 +110,7 @@ def butter_lowpass(lowcut, sampling_period, order=5):
     return b, a
 
 
+# ------------------------------------------------------------------------------
 def butter_lowpass_filter(data, lowcut, sampling_period, order=5):
     import scipy.signal
     b, a = butter_lowpass(lowcut, sampling_period, order=order)
@@ -110,6 +118,7 @@ def butter_lowpass_filter(data, lowcut, sampling_period, order=5):
     return y
 
 
+# ------------------------------------------------------------------------------
 def butter_highpass(highcut, sampling_period, order=5):
     import scipy.signal
     sampling_frequency = 1.0 / sampling_period
@@ -119,6 +128,7 @@ def butter_highpass(highcut, sampling_period, order=5):
     return b, a
 
 
+# ------------------------------------------------------------------------------
 def butter_highpass_filter(data, highcut, sampling_period, order=5):
     import scipy.signal
     b, a = butter_highpass(highcut, sampling_period, order=order)
@@ -126,6 +136,63 @@ def butter_highpass_filter(data, highcut, sampling_period, order=5):
     return y
 
 
+# ------------------------------------------------------------------------------
+# rolling window that avoids looping
+def rolling_window(a, window):
+    shape = a.shape[:-1] + (a.shape[-1] - window + 1, window)
+    strides = a.strides + (a.strides[-1],)
+    return np.lib.stride_tricks.as_strided(a, shape=shape, strides=strides)
+
+
+# ------------------------------------------------------------------------------
+# hampel filter
+def hampel(x, k=7, t0=3):
+    """taken from stack overflow
+    x= 1-d numpy array of numbers to be filtered
+    k= number of items in window/2 (# forward and backward wanted to capture in median filter)
+    t0= number of standard deviations to use; 3 is default
+    """
+    dk = int((k - 1) / 2)
+    y = x.copy()  # y is the corrected series
+    L = 1.4826
+
+    # calculate rolling median
+    rolling_median = np.nanmedian(rolling_window(y, k), -1)
+    rolling_median = np.concatenate((y[:dk], rolling_median, y[-dk:]))
+
+    # compare rolling median to value at each point
+    difference = np.abs(rolling_median - y)
+    median_abs_deviation = np.nanmedian(rolling_window(difference, k), -1)
+    median_abs_deviation = np.concatenate((difference[:dk], median_abs_deviation,
+                                           difference[-dk:]))
+
+    # determine where data exceeds t0 standard deviations from the local median
+    threshold = t0 * L * median_abs_deviation
+    outlier_idx = difference > threshold
+
+    y[outlier_idx] = rolling_median[outlier_idx]
+
+    return y, outlier_idx
+
+
+# ------------------------------------------------------------------------------
+# rolling average filter
+def moving_avg(x, k=3):
+    '''taken from stack overflow
+    x= 1-d numpy array of numbers to be filtered
+    k= number of items in window/2 (# forward and backward wanted to capture in filter)
+    '''
+    dk = int((k - 1) / 2)
+    y = x.copy()  # y is the corrected series
+
+    # calculate rolling median
+    rolling_mean = np.nanmean(rolling_window(y, k), -1)
+    rolling_mean = np.concatenate((y[:dk], rolling_mean, y[-dk:]))
+
+    return rolling_mean
+
+
+# ------------------------------------------------------------------------------
 def scatterplot_matrix(data, names, **kwargs):
     """Plots a scatterplot matrix of subplots.  Each row of "data" is plotted
     against other rows, resulting in a nrows by nrows grid of subplots with the
@@ -171,6 +238,7 @@ def scatterplot_matrix(data, names, **kwargs):
     return fig
 
 
+# ------------------------------------------------------------------------------
 def symm_matrix_half(m, exclude_diagonal=True):
     # Returns a 1D array of the values in the triangle half of a symmetric matrix
     # Excluding the diagonal optional
@@ -193,6 +261,7 @@ def symm_matrix_half(m, exclude_diagonal=True):
     return collector
 
 
+# ------------------------------------------------------------------------------
 def get_rframe_transform(self,other):
     """get transform into self from other frame (muscle imaging reference frames)"""
     A1 = np.hstack((self['A'],self['p'][:,np.newaxis]))
@@ -203,6 +272,7 @@ def get_rframe_transform(self,other):
     return np.dot(A1, np.linalg.inv(A2))
 
 
+# ------------------------------------------------------------------------------
 def construct_rframe_dict(e1, e2):
     """Make a dictionary containing refrence frame info"""
     frame = dict()
